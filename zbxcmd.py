@@ -63,6 +63,9 @@ def get_options():
         parser.add_option("","--triggerid",action="callback", callback=add_cmd_arg, \
                 type="int", help="Filter trigger by id.")
 
+        parser.add_option("","--depends-on",action="callback", callback=add_cmd_arg, \
+                type="int", help="id of the object that it depends on.")
+
 	options,args = parser.parse_args()
 
         if not options.command:
@@ -73,11 +76,6 @@ def get_options():
         
         if 'method' not in command_args:
             errmsg("--method is a required argument!")
-
-        #if options.excludeSearch:
-        #    command_args["exclude-search"] = True
-        #else:
-        #    command_args["exclude-search"] = False
 
         if options.include_triggers:
             command_args["include-triggers"] = True
@@ -152,9 +150,18 @@ def trigger_get(zapi,args):
 
     return zapi.trigger.get(**options)
 
+def trigger_add_dependency(zapi,args):
+    if 'triggerid' not in args:
+        errmsg("You need to specify a triggerid to create a dependency.")
+    if 'depends-on' not in args:
+        errmsg("You need to specify the trigger-id the trigger depends on.")
+
+    return zapi.trigger.adddependencies(triggerid=args['triggerid'], dependsOnTriggerid=args['depends-on'])
+
 def trigger_cmd_parse(zapi,args):
     methods={
-        'get': trigger_get
+        'get': trigger_get,
+        'adddependencies': trigger_add_dependency
     }
     if args['method'] not in methods:
         errmsg(args['method'] + " is not a valid method!")
