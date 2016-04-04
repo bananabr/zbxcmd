@@ -16,6 +16,7 @@ def add_cmd_arg(option, opt, value, parser):
 def get_options():
         commands={
             'host': host_cmd_parse,
+            'hostgroup': hostgroup_cmd_parse,
             'trigger': trigger_cmd_parse
         }
         valid_methods=['get']
@@ -25,7 +26,7 @@ def get_options():
 	parser = OptionParser(usage)
 
 	parser.add_option("-s","--server",action="store",type="string",\
-		dest="server",help="(REQUIRED)Zabbix Server URL.")
+                dest="server",help="(REQUIRED)Zabbix Server URL. Ex.: http://server.local/zabbix")
 	
         parser.add_option("-u", "--username", action="store", type="string",\
 		dest="username",help="(REQUIRED)Username (Will prompt if not given).")
@@ -49,7 +50,7 @@ def get_options():
 			- trigger")
 	
         parser.add_option("-f","--fields",action="store",type="string",\
-                dest="output", help="Inverse filter criteria")
+                dest="output", help="Comma separated list of fields to be retrieved ")
 
 	parser.add_option("","--method",action="callback", callback=add_cmd_arg, \
                 type="string", help="(REQUIRED)Command method to run")
@@ -57,8 +58,14 @@ def get_options():
         parser.add_option("","--include-triggers",action="store_true", \
                 dest="include_triggers", help="Include triggers as child objects when available.")
 	
+        parser.add_option("","--include-hosts",action="store_true", \
+                dest="include_hosts", help="Include hosts as child objects when available.")
+
         parser.add_option("","--host",action="callback", callback=add_cmd_arg, \
                 type="string", help="Filter by hostname")
+        
+        parser.add_option("","--name",action="callback", callback=add_cmd_arg, \
+                type="string", help="Filter by name")
 	
         parser.add_option("","--triggerid",action="callback", callback=add_cmd_arg, \
                 type="int", help="Filter trigger by id.")
@@ -79,7 +86,9 @@ def get_options():
 
         if options.include_triggers:
             command_args["include-triggers"] = True
-
+        if options.include_hosts:
+            command_args["include-hosts"] = True
+	
         if options.output:
             command_args["output"] = options.output
 
@@ -106,11 +115,13 @@ def build_filter(command, args):
     result={}
 
     host_allowed_filters=['host']
+    hostgroup_allowed_filters=['name']
     trigger_allowed_filters=['host','triggerid']
 
     command_allowed_filters={
         'host': host_allowed_filters,
-        'trigger': trigger_allowed_filters
+        'trigger': trigger_allowed_filters,
+        'hostgroup': hostgroup_allowed_filters
     }
 
     allowed_filters = command_allowed_filters[command]
@@ -135,6 +146,22 @@ def host_get(zapi,args):
         options['output']="extend"
 
     return zapi.host.get(**options)
+
+def hostgroup_get(zapi,args):
+    f=build_filter('hostgroup', args)
+    options={}
+    options['filter']=f
+
+    if 'exclude-search' in args and args["exclude-search"]:
+        options['excludeSearch'] = 1
+    if 'include-hosts' in args and args['include-hosts']:
+        options['selectHosts']=["hostid","name"]
+    if 'output' in args:
+        options['output']=args['output'].split(',')
+    else:
+        options['output']="extend"
+
+    return zapi.hostgroup.get(**options)
 
 def trigger_get(zapi,args):
     f=build_filter('trigger', args)
@@ -164,7 +191,16 @@ def trigger_cmd_parse(zapi,args):
         'adddependencies': trigger_add_dependency
     }
     if args['method'] not in methods:
-        errmsg(args['method'] + " is not a valid method!")
+        errmsg(args['method'] + " is not a valid method for the trigger command!")
+    method=methods[args['method']]
+    return method(zapi,args)
+
+def hostgroup_cmd_parse(zapi,args):
+    methods={
+        'get': hostgroup_get
+    }
+    if args['method'] not in methods:
+        errmsg(args['method'] + " is not a valid method for the hostgroup command!")
     method=methods[args['method']]
     return method(zapi,args)
 
@@ -173,7 +209,7 @@ def host_cmd_parse(zapi,args):
         'get': host_get
     }
     if args['method'] not in methods:
-        errmsg(args['method'] + " is not a valid method!")
+        errmsg(args['method'] + " is not a valid method for the host command!")
     method=methods[args['method']]
     return method(zapi,args)
 
