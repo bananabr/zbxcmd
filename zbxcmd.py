@@ -10,9 +10,16 @@ import json
 
 
 command_args={}
+filters={}
+
 def add_cmd_arg(option, opt, value, parser):
 	command_args[opt.lstrip('-')]=value
 
+def add_filters(option, opt, value, parser):
+	_key=value.split(":")[0]
+	_value=value.split(":")[1]
+	filters[_key]=_value
+	
 def get_options():
 	commands={
 		'host': host_cmd_parse,
@@ -20,60 +27,53 @@ def get_options():
 		'trigger': trigger_cmd_parse,
 		'itemprototype': item_proto_cmd_parse
 	}
+	
 	valid_methods=['get']
-
+	
+	filters = {}
+	
 	usage = "usage: %prog [command][options]"
 	OptionParser = optparse.OptionParser
 	parser = OptionParser(usage)
 
 	parser.add_option("-s","--server",action="store",type="string",\
-				dest="server",help="(REQUIRED)Zabbix Server URL. Ex.: http://server.local/zabbix")
+		dest="server",help="(REQUIRED)Zabbix Server URL. Ex.: http://server.local/zabbix")
 	
 	parser.add_option("-u", "--username", action="store", type="string",\
-	dest="username",help="(REQUIRED)Username (Will prompt if not given).")
+		dest="username",help="(REQUIRED)Username (Will prompt if not given).")
 
 	parser.add_option("-p", "--password", action="store", type="string",\
-	dest="password",help="(REQUIRED)Password (Will prompt if not given).")
+		dest="password",help="(REQUIRED)Password (Will prompt if not given).")
 
 	parser.add_option("-U", "--http-user", action="store", type="string",\
-	dest="http_username",help="Username for HTTP basic authentication.")
+		dest="http_username",help="Username for HTTP basic authentication.")
 
 	parser.add_option("-P","--http-pass",action="store",type="string",\
-	dest="http_password",help="Password for HTTP basic authentication (Will prompt if not given).")
+		dest="http_password",help="Password for HTTP basic authentication (Will prompt if not given).")
 
 	parser.add_option("-t","--timeout",action="store",type="int",default=3,\
-	dest="timeout",help="Set connection timeout in seconds")
+		dest="timeout",help="Set connection timeout in seconds")
 
 	parser.add_option("-c","--cmd",action="store",type="string",\
-	dest="command",help="(REQUIRED)command. Available commands are:\
-		- hostgroup\
-		- host\
-		- itemprototype\
-		- trigger")
+		dest="command", help="(REQUIRED)command. Available commands are: hostgroup,host,itemprototype,trigger")
+
+	parser.add_option("-F", "--filter", action="callback", callback=add_filters, \
+		type="string", help="filter key value pair")
 
 	parser.add_option("-f","--fields",action="store",type="string",\
-			dest="output", help="Comma separated list of fields to be retrieved ")
+		dest="output", help="Comma separated list of fields to be retrieved ")
 
 	parser.add_option("","--method",action="callback", callback=add_cmd_arg, \
-				type="string", help="(REQUIRED)Command method to run")
+		type="string", help="(REQUIRED)Command method to run")
 	
 	parser.add_option("","--include-triggers",action="store_true", \
-			dest="include_triggers", help="Include triggers as child objects when available.")
+		dest="include_triggers", help="Include triggers as child objects when available.")
 
 	parser.add_option("","--include-hosts",action="store_true", \
-			dest="include_hosts", help="Include hosts as child objects when available.")
-
-	parser.add_option("","--host",action="callback", callback=add_cmd_arg, \
-			type="string", help="Filter by hostname")
-	
-	parser.add_option("","--name",action="callback", callback=add_cmd_arg, \
-			type="string", help="Filter by name")
-
-	parser.add_option("","--triggerid",action="callback", callback=add_cmd_arg, \
-			type="int", help="Filter trigger by id.")
+		dest="include_hosts", help="Include hosts as child objects when available.")
 
 	parser.add_option("","--depends-on",action="callback", callback=add_cmd_arg, \
-			type="int", help="id of the object that it depends on.")
+		type="int", help="id of the object that it depends on.")
 
 	options,args = parser.parse_args()
 
@@ -88,6 +88,7 @@ def get_options():
 
 	if options.include_triggers:
 		command_args["include-triggers"] = True
+
 	if options.include_hosts:
 		command_args["include-hosts"] = True
 
@@ -122,7 +123,7 @@ def build_filter(command, args):
 
 	host_allowed_filters=['host']
 	hostgroup_allowed_filters=['name']
-	trigger_allowed_filters=['host','triggerid']
+	trigger_allowed_filters=['host','triggerid','priority']
 	item_proto_allowed_filters=['hostid','name','type']
 
 	command_allowed_filters={
@@ -134,9 +135,9 @@ def build_filter(command, args):
 
 	allowed_filters = command_allowed_filters[command]
 	for f in allowed_filters:
-		if f in args:
-			result[f]=args[f]
-			
+		if (f in filters):
+			result[f]=filters[f]
+
 	return result	
 
 def host_get(zapi,args):
