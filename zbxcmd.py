@@ -148,7 +148,7 @@ def host_get(zapi,args):
 	if 'exclude-search' in args and args["exclude-search"]:
 		options['excludeSearch'] = 1
 	if 'include-triggers' in args and args['include-triggers']:
-		options['selectTriggers']=["description","triggerid"]
+		options['selectTriggers']=["description","triggerid","priority"]
 	if 'output' in args:
 		options['output']=args['output'].split(',')
 	else:
@@ -187,12 +187,12 @@ def trigger_get(zapi,args):
 	return zapi.trigger.get(**options)
 
 def trigger_add_dependency(zapi,args):
-	if 'triggerid' not in args:
+	if 'triggerid' not in filters:
 		errmsg("You need to specify a triggerid to create a dependency.")
 	if 'depends-on' not in args:
 		errmsg("You need to specify the trigger-id the trigger depends on.")
 
-	return zapi.trigger.adddependencies(triggerid=args['triggerid'], dependsOnTriggerid=args['depends-on'])
+	return zapi.trigger.adddependencies(triggerid=filters['triggerid'], dependsOnTriggerid=args['depends-on'])
 
 def item_proto_get(zapi,args):
 	f=build_filter('item_proto', args)
