@@ -1,4 +1,6 @@
 #!/bin/sh
+# This script takes every trigger of PARENT_HOSTS with priority higher than TRIGGER_PRIO and 
+# creates trigger dependencies on every trigger that belongs to hosts in CHILD_HOSTS
 
 ZABBIX_BASE_URL='http://localhost'
 ZABBIX_USER='Admin'
